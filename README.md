@@ -1,122 +1,120 @@
-<div align="center">
+<p align="center">
+  <img src="public/logouiforge.svg" alt="UI Forge Logo" width="64" height="64" />
+</p>
 
-# ⚒️ UI Forge
+<h1 align="center">UI Forge</h1>
 
-**Visual Design System Editor — Connect your component library, preview & edit components live, and sync changes back to code.**
+<p align="center">
+  <strong>A desktop application for visually inspecting, editing, and managing design-system components in real time.</strong>
+</p>
 
-Built with **Electron** + **React 19** + **TypeScript** + **esbuild-wasm**
-
-</div>
+<p align="center">
+  <img src="https://img.shields.io/badge/Electron-40+-47848F?logo=electron&logoColor=white" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" />
+  <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/esbuild--wasm-0.27-FFCF00?logo=esbuild&logoColor=black" />
+</p>
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [What is UI Forge?](#what-is-ui-forge)
-- [For Designers — How It Works](#for-designers--how-it-works)
-- [Architecture Overview](#architecture-overview)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
 - [Project Structure](#project-structure)
-- [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
-- [How the Pieces Fit Together](#how-the-pieces-fit-together)
-- [Key Concepts](#key-concepts)
-- [IPC Communication Map](#ipc-communication-map)
-- [Data Flow](#data-flow)
-- [Component Reference](#component-reference)
-- [Service Reference](#service-reference)
-- [Type System](#type-system)
-- [Configuration Files](#configuration-files)
-- [Building for Production](#building-for-production)
-- [Troubleshooting](#troubleshooting)
+- [Configuration: forgecore.json](#configuration-forgecorejson)
+- [Tech Stack](#tech-stack)
+- [Environment Variables](#environment-variables)
 
 ---
 
-## What is UI Forge?
+## Overview
 
-UI Forge is a **desktop application** (Electron) that lets you:
+**UI Forge** is a cross-platform desktop application (macOS, Windows, Linux) that connects to any design-system repository and provides a visual workspace for browsing, previewing, and editing components. It reads a `forgecore.json` configuration file from the repo to understand the component structure, then compiles and renders each component live inside an isolated sandbox — no Storybook required.
 
-1. **Connect** a Git repository containing a React component library (e.g. a Design System).
-2. **Parse** the repository to automatically extract components, variants, props, design tokens, and CSS.
-3. **Preview** components in a high-fidelity, isolated sandbox with live React rendering.
-4. **Edit** properties (props, styles, spacing, colors) visually through a Properties Panel.
-5. **Sync** changes back to the repository via Git (commit & push).
+Developers and designers can:
 
-> [!NOTE]
-> UI Forge works in **two modes**: as a full **Electron desktop app** with Git integration, or as a **web preview** (via `npm run dev`) for quick UI development and testing.
-
----
-
-## For Designers — How It Works
-
-If you're a designer (not a developer), here's what you need to know:
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                         UI Forge                               │
-│                                                                │
-│  ┌──────────┐    ┌──────────────────┐    ┌─────────────────┐  │
-│  │ SIDEBAR   │    │     CANVAS       │    │ PROPERTIES      │  │
-│  │           │    │                  │    │ PANEL           │  │
-│  │ • Comps   │    │  Live preview    │    │                 │  │
-│  │ • Tokens  │    │  of the          │    │ • Sizing        │  │
-│  │ • Stories │    │  selected        │    │ • Spacing       │  │
-│  │           │    │  component       │    │ • Colors        │  │
-│  │ Click to  │    │                  │    │ • Typography    │  │
-│  │ select    │    │  (Real React!)   │    │ • Props         │  │
-│  │           │    │                  │    │ • Variants      │  │
-│  └──────────┘    └──────────────────┘    └─────────────────┘  │
-└────────────────────────────────────────────────────────────────┘
-```
-
-| Area | What it does |
-|------|-------------|
-| **Sidebar** (left) | Browse all components and design tokens from the connected repository. Click to select. |
-| **Canvas** (center) | Shows a **live, interactive preview** of the selected component — rendered with actual React, not a screenshot. |
-| **Properties Panel** (right) | Inspect and edit the selected component's sizing, spacing, colors, typography, props, and variants. Changes update the preview in real-time. |
-
-### Key terms for designers
-
-| Term | Meaning |
-|------|---------|
-| **Component** | A reusable UI piece (Button, Card, Input, etc.) |
-| **Variant** | A visual variation (e.g. Button → Primary, Secondary, Ghost) |
-| **Design Token** | A named value for colors, spacing, or typography (e.g. `--primary-color: #2563eb`) |
-| **Props** | Configurable parameters of a component (e.g. `disabled`, `size`, `label`) |
-| **CSS Modules** | Scoped stylesheets that prevent style conflicts between components |
+- **Browse** all components and design tokens in a structured sidebar.
+- **Preview** components in a sandboxed iframe with live CSS rendering.
+- **Edit** CSS properties visually and write changes back to the source files.
+- **Sync** changes via Git (commit, push, pull) without leaving the app.
+- **Chat** with an AI assistant (Gemini) that has full context of your repository.
 
 ---
 
-## Architecture Overview
+## Key Features
 
-UI Forge uses Electron's **two-process model**:
+| Feature                       | Description                                                                                     |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| 🧩 **Component Browser**     | Sidebar listing all components and tokens parsed from `forgecore.json`.                         |
+| 🖼️ **Live Preview Sandbox**  | Isolated iframe rendering components with real dependencies compiled via esbuild-wasm.          |
+| 🎨 **Visual CSS Editor**     | Properties Panel with categorized CSS sections (Typography, Layout, Appearance, Effects, etc.). |
+| 📝 **File Writeback**        | Edit CSS values in the panel → changes are written directly to `.module.css` files.             |
+| 🔀 **Variant & Size Picker** | Switch between component variants, sizes, and interactive states (hover, focus, active, etc.).  |
+| 🧪 **States Preview**        | Force pseudo-states like `:hover`, `:focus`, `:disabled` on any component.                      |
+| 🔗 **Git Integration**       | Clone, pull, commit, push, and check branch status — all from within the app.                   |
+| 🤖 **AI Chat (Gemini)**      | Floating chat window powered by Google Gemini with full repo context.                           |
+| 🔐 **Firebase Auth**         | Google Sign-In with role-based access control (managed from Admin Forge).                       |
+| 📜 **Change History**        | Undo/redo stack tracking all CSS modifications with full change log.                            |
+| 🧱 **Sub-element Editing**   | Inspect and edit individual sub-elements within compound components.                            |
 
-```mermaid
-graph TB
-    subgraph "Main Process (Node.js)"
-        M[electron/main.ts]
-        RP[RepoParser<br/>1548 lines]
-        GS[GitService]
-    end
+---
 
-    subgraph "Renderer Process (Chromium)"
-        A[App.tsx] --> SB[Sidebar]
-        A --> C[Canvas / ReactSandbox]
-        A --> PP[PropertiesPanel]
-        C --> EC[esbuildCompiler<br/>WASM]
-        C --> ST[sandboxTemplate]
-        A --> CM[ConnectModal]
-        A --> SM[SyncModal]
-    end
+## Architecture
 
-    M <-->|IPC calls| A
-    RP -->|repo:parse| A
-    GS -->|git:*| A
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        ELECTRON (Main Process)                   │
+│                                                                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌────────────┐               │
+│  │ repoParser  │  │ gitService  │  │ astParser  │               │
+│  │ Reads repos │  │ Clone/Pull/ │  │ TypeScript │               │
+│  │ & forgecore │  │ Push/Commit │  │ AST parsing│               │
+│  └──────┬──────┘  └──────┬──────┘  └─────┬──────┘               │
+│         │                │               │                       │
+│  ┌──────┴──────┐  ┌──────┴──────────────┬┘                       │
+│  │ codeWriter  │  │ forgecoreTypes      │                        │
+│  │ Write CSS   │  │ Type definitions    │                        │
+│  │ back to file│  │ for forgecore.json  │                        │
+│  └─────────────┘  └────────────────────-┘                        │
+│                                                                  │
+│                     IPC Bridge (preload.ts)                       │
+├──────────────────────────────────────────────────────────────────┤
+│                     RENDERER (React + Vite)                      │
+│                                                                  │
+│  ┌──────────┐  ┌──────────────┐  ┌─────────────────────────┐    │
+│  │ App.tsx  │  │   Sidebar    │  │   PropertiesPanel       │    │
+│  │ Layout & │  │ Components & │  │ CSS sections, Variants, │    │
+│  │ routing  │  │ Token list   │  │ AI chat, Code view      │    │
+│  └────┬─────┘  └──────────────┘  └─────────────────────────┘    │
+│       │                                                          │
+│  ┌────┴──────────────┐  ┌──────────────────────┐                 │
+│  │   ReactSandbox    │  │  esbuildCompiler.ts   │                │
+│  │ Isolated iframe   │  │ Browser-side WASM     │                │
+│  │ renders component │◄─┤ JSX/TSX → JavaScript  │                │
+│  └───────────────────┘  └──────────────────────┘                 │
+│                                                                  │
+│  ┌──────────────────┐  ┌──────────────────────┐                  │
+│  │ cssModuleParser  │  │  geminiService.ts     │                 │
+│  │ Parse & categorize│  │ AI chat with repo    │                 │
+│  │ CSS Modules      │  │ context (Gemini API)  │                 │
+│  └──────────────────┘  └──────────────────────┘                  │
+│                                                                  │
+│  Hooks: useAppState │ useAuth │ useChangeHistory                  │
+│  Libs:  firebase.ts │ userService.ts │ changeHistory.ts           │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-| Process | Runs in | Responsibilities |
-|---------|---------|-----------------|
-| **Main** | Node.js | File system access, Git operations, repository parsing |
-| **Renderer** | Chromium browser | UI, component preview, in-browser compilation via esbuild-wasm |
+### Data Flow
+
+1. **Connect to repo** → Electron's `repoParser` reads `forgecore.json`, scans for components, extracts source code, CSS modules, props, variants, dependencies, and assets.
+2. **Compile** → The renderer's `esbuildCompiler` (running esbuild-wasm in the browser) compiles TSX/JSX + dependencies into executable JavaScript.
+3. **Render** → `ReactSandbox` loads the compiled code into an isolated iframe with the theme CSS and React runtime.
+4. **Edit** → `PropertiesPanel` uses `cssModuleParser` to display categorized CSS properties. Edits trigger writeback via `codeWriter` (Electron IPC) directly to the `.module.css` file.
+5. **Sync** → `gitService` manages commits, pushes, and pulls through the Electron main process.
 
 ---
 
@@ -124,85 +122,87 @@ graph TB
 
 ```
 ui-forge/
-├── index.html              # Entry HTML — loads Tailwind CDN + import maps
-├── index.tsx               # React entry point (createRoot)
-├── App.tsx                 # Root component — orchestrates all panels & state
-├── types.ts                # Shared TypeScript interfaces (ComponentNode, Repository, Token…)
-├── constants.ts            # UI constants (spacing, colors, fonts, shadows)
-│
-├── components/
-│   ├── Sidebar.tsx         # Left panel — component & token tree navigation
-│   ├── Canvas.tsx          # Static canvas fallback (Babel-based rendering)
-│   ├── ReactSandbox.tsx    # ⭐ Live React preview via iframe + esbuild-wasm
-│   ├── ReactSandbox/
-│   │   └── sandboxTemplate.ts  # HTML template for sandbox iframe
-│   ├── PropertiesPanel.tsx # Right panel — style/prop editing (982 lines)
-│   ├── PropertiesPanel/
-│   │   └── hooks/
-│   │       └── useStyleOverrides.ts  # Hook for CSS Module style overrides
-│   ├── ConnectModal.tsx    # Repository connection dialog (clone / open local)
-│   ├── SyncModal.tsx       # Git commit & push dialog
-│   ├── StaticCanvas.tsx    # Static preview with variant matrix view
-│   └── TitleBar.tsx        # Custom window title bar (Electron-only)
-│
-├── electron/
-│   ├── main.ts             # Electron main process — window + IPC handlers
-│   ├── preload.ts          # Context bridge (electronAPI) — secure IPC
+├── electron/                    # Electron main process
+│   ├── main.ts                  # Window creation, IPC handlers, protocol registration
+│   ├── preload.ts               # Context bridge (exposes IPC to renderer)
 │   └── services/
-│       ├── repoParser.ts   # ⭐ Core extraction engine (1548 lines)
-│       └── gitService.ts   # Git operations via simple-git
+│       ├── repoParser.ts        # Parses forgecore.json and scans repo for components
+│       ├── astParser.ts         # TypeScript AST parsing for prop extraction
+│       ├── codeWriter.ts        # Writes CSS/code changes back to files
+│       ├── gitService.ts        # Git operations (clone, pull, push, status, commit)
+│       └── forgecoreTypes.ts    # TypeScript types for forgecore.json schema
+│
+├── components/                  # React UI components
+│   ├── App.tsx                  # Main application layout & state orchestration
+│   ├── Sidebar.tsx              # Component/token browser with repo list
+│   ├── ReactSandbox.tsx         # Sandboxed iframe for live component preview
+│   ├── ReactSandbox/
+│   │   └── sandboxTemplate.ts   # HTML template for the sandbox iframe
+│   ├── PropertiesPanel.tsx      # Side panel for editing component properties
+│   ├── PropertiesPanel/
+│   │   ├── sections/            # Modular CSS editor sections
+│   │   │   ├── TypographySection.tsx
+│   │   │   ├── LayoutSection.tsx
+│   │   │   ├── AppearanceSection.tsx
+│   │   │   ├── EffectsSection.tsx
+│   │   │   ├── PositionSection.tsx
+│   │   │   ├── IdentitySection.tsx
+│   │   │   ├── CSSPropertiesSection.tsx
+│   │   │   ├── OtherPropertiesSection.tsx
+│   │   │   └── AiSection.tsx
+│   │   ├── hooks/
+│   │   │   ├── useStyleOverrides.ts  # CSS override state management
+│   │   │   └── useFileWriteback.ts   # Write CSS changes to disk
+│   │   ├── primitives.tsx       # Reusable input components for the panel
+│   │   ├── CodeBlock.tsx        # Syntax-highlighted code display
+│   │   └── types.ts             # Panel-specific types
+│   ├── AiFloatingChat.tsx       # Floating AI chat window (Gemini)
+│   ├── AuthModal.tsx            # Firebase Google Sign-In modal
+│   ├── ConnectModal.tsx         # Repository connection dialog
+│   ├── SyncModal.tsx            # Git sync/commit/push dialog
+│   ├── StateSelector.tsx        # Pseudo-state picker (hover, focus, etc.)
+│   └── TitleBar.tsx             # Custom window title bar
+│
+├── hooks/
+│   ├── useAppState.ts           # Centralized state management (useReducer)
+│   ├── useAuth.ts               # Firebase authentication hook
+│   └── useChangeHistory.ts      # Undo/redo change tracking
 │
 ├── lib/
-│   └── esbuildCompiler.ts  # ⭐ Browser-side TSX/JSX compilation via WASM
+│   ├── esbuildCompiler.ts       # Browser-side esbuild-wasm JSX/TSX compiler
+│   ├── cssModuleParser.ts       # CSS Module parser with variant categorization
+│   ├── changeHistory.ts         # Change history data structures
+│   ├── firebase.ts              # Firebase app initialization
+│   └── userService.ts           # User profile Firestore operations
 │
 ├── services/
-│   └── geminiService.ts    # Gemini AI integration (style generation)
+│   └── geminiService.ts         # Google Gemini AI chat service
 │
 ├── types/
-│   ├── electron.d.ts       # TypeScript types for electronAPI bridge
-│   └── css.d.ts            # CSS Module type declarations
+│   ├── electron.d.ts            # Electron IPC type declarations
+│   └── css.d.ts                 # CSS module type declarations
+│
+├── types.ts                     # Core domain types (ComponentNode, Repository, Token)
+├── constants.ts                 # Initial/default values
+├── index.html                   # HTML entry point
+├── index.tsx                    # React DOM entry point
+├── vite.config.ts               # Vite configuration
+├── tsconfig.json                # TypeScript config (renderer)
+├── tsconfig.electron.json       # TypeScript config (Electron main)
+├── tsconfig.preload.json        # TypeScript config (preload script)
+├── package.json                 # Dependencies and scripts
 │
 ├── public/
-│   └── esbuild.wasm        # esbuild WebAssembly binary (13.5 MB)
+│   ├── esbuild.wasm             # esbuild WebAssembly binary
+│   ├── react.development.js     # React runtime for sandbox
+│   ├── react-dom.development.js # ReactDOM runtime for sandbox
+│   ├── logouiforge.svg          # App logo (SVG)
+│   └── logouiforge.png          # App logo (PNG)
 │
-├── dist-electron/          # Compiled Electron output (auto-generated)
-│
-├── package.json            # Dependencies & scripts
-├── vite.config.ts          # Vite configuration (port 3000, path alias @/)
-├── tsconfig.json           # TypeScript config (renderer)
-├── tsconfig.electron.json  # TypeScript config (main process)
-├── tsconfig.preload.json   # TypeScript config (preload script)
-└── metadata.json           # App metadata
+└── docs/
+    ├── forgecore-guide.md       # Developer guide for forgecore.json
+    └── forgecore-template.json  # Complete forgecore.json template
 ```
-
-### Key: ⭐ = Core Engine Files
-
-These are the most important files to understand:
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `electron/services/repoParser.ts` | 1548 | Parses a Design System repo — extracts components, CSS, props, variants, tokens, and forgecore.json manifest |
-| `components/ReactSandbox.tsx` | 462 | Renders live React components inside an isolated iframe using esbuild-wasm |
-| `lib/esbuildCompiler.ts` | 454 | Compiles TSX/JSX → JavaScript in the browser via WebAssembly |
-| `components/PropertiesPanel.tsx` | 982 | Visual property editor with color pickers, spacing controls, typography, and AI edit |
-
----
-
-## Tech Stack
-
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| **Electron** | 40.x | Desktop shell (Node.js + Chromium) |
-| **React** | 19.x | UI framework |
-| **TypeScript** | 5.8 | Type safety |
-| **Vite** | 6.x | Dev server & bundler |
-| **esbuild-wasm** | 0.27 | In-browser JSX/TSX compilation |
-| **Tailwind CSS** | CDN | Utility-first styling |
-| **simple-git** | 3.x | Git operations in Node.js |
-| **Lucide React** | 0.563 | Icon library |
-| **@google/genai** | 1.39 | Gemini AI for style generation |
-| **@babel/standalone** | 7.x | Fallback static canvas compilation |
-| **clsx + tailwind-merge** | — | Tailwind class utilities |
 
 ---
 
@@ -210,308 +210,109 @@ These are the most important files to understand:
 
 ### Prerequisites
 
-- **Node.js** ≥ 18
-- **npm** ≥ 9
-- (Optional) **Gemini API key** for AI-powered style editing
+- **Node.js** ≥ 20
+- **npm** ≥ 10
+- **Git** installed and configured
 
-### 1. Install dependencies
+### Installation
 
 ```bash
+git clone https://github.com/aizetachan/ui-forge.git
+cd ui-forge
 npm install
 ```
 
-### 2. Set up environment variables
-
-Create a `.env.local` file in the root:
-
-```env
-GEMINI_API_KEY=your_api_key_here
-```
-
-### 3. Run in web mode (preview only)
+### Development
 
 ```bash
-npm run dev
+# Compile Electron TypeScript + start Vite dev server + launch Electron
+npx tsc -p tsconfig.electron.json && npm run electron:dev
 ```
 
-Opens at `http://localhost:3000`. No Git/file-system features — good for UI development.
+This will:
+1. Compile the Electron main process TypeScript to `dist-electron/`.
+2. Start the Vite dev server on `http://localhost:3000`.
+3. Launch the Electron window pointing to the dev server.
 
-### 4. Run as Electron app (full features)
-
-```bash
-npm run electron:dev
-```
-
-This starts Vite + Electron concurrently. Full Git operations & repository parsing available.
-
-### Available Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start Vite dev server (web mode only) |
-| `npm run build` | Build renderer for production |
-| `npm run electron:dev` | Dev mode with full Electron + Vite |
-| `npm run electron:build` | Package the desktop app (dmg/nsis/AppImage) |
-| `npm run electron:preview` | Build + run Electron locally |
-
----
-
-## How the Pieces Fit Together
-
-### Step-by-step: What happens when you connect a repo
-
-```
-1. User clicks "Connect" in the Sidebar
-       ↓
-2. ConnectModal opens → User enters repo URL or selects local directory
-       ↓
-3. App.tsx calls electronAPI.git.clone() or electronAPI.repo.parse()
-       ↓
-4. [Main Process] GitService clones the repo (if remote)
-       ↓
-5. [Main Process] RepoParser scans the directory:
-   • Looks for forgecore.json manifest
-   • Finds component files (.tsx/.jsx)
-   • Reads CSS Modules (.module.css)
-   • Extracts props, variants, design tokens
-   • Reads .stories.tsx files for story variants
-       ↓
-6. Parsed data returns to Renderer via IPC
-       ↓
-7. App.tsx stores it in state → Sidebar, Canvas, PropertiesPanel render
-       ↓
-8. User selects a component in Sidebar
-       ↓
-9. ReactSandbox compiles it with esbuild-wasm and renders in iframe
-```
-
-### Step-by-step: What happens when you edit a property
-
-```
-1. User changes a value in PropertiesPanel (e.g. padding)
-       ↓
-2. PropertiesPanel calls onUpdateComponent(updatedComponent)
-       ↓
-3. App.tsx updates the component in its state
-       ↓
-4. ReactSandbox re-compiles & re-renders the preview
-       ↓
-5. (Optional) User clicks "Sync" → SyncModal commits & pushes via Git
-```
-
----
-
-## Key Concepts
-
-### Forgecore Manifest (`forgecore.json`)
-
-This is the **configuration file** that UI Forge looks for in the root of a connected repository. It describes:
-
-- **Components**: Entry files, styles, props, dependencies, preview configuration
-- **Utilities**: Custom module stubs for browser rendering
-- **Design tokens**: Token source paths and theming configuration
-- **Runtime**: React version, bundler preferences, CSS strategy
-
-> [!TIP]
-> Without a `forgecore.json`, UI Forge falls back to auto-discovery — scanning for `.tsx` files and `.module.css` files — but the manifest gives much better results.
-
-### Style Overrides
-
-For CSS Module-based components, UI Forge uses a **non-destructive** editing approach:
-
-- The original CSS is never modified in-memory.
-- Visual changes are stored as `styleOverrides` on the ComponentNode.
-- These are injected as inline styles or CSS variables at render time.
-- Overrides can be scoped per variant/size combination (`styleOverridesPerVariant`).
-
-### Sandbox Isolation
-
-Components are rendered inside an `<iframe>` with:
-- Its own React 19 runtime (loaded from CDN)
-- Theme CSS injected as `<style>` tags
-- Props communicated via `postMessage`
-- Import stubs for unavailable modules (e.g. `next/link`, `next/image`)
-
----
-
-## IPC Communication Map
-
-Communication between Renderer ↔ Main Process uses Electron's `ipcMain.handle` / `ipcRenderer.invoke` pattern:
-
-| Channel | Direction | Purpose |
-|---------|-----------|---------|
-| `git:clone` | Renderer → Main | Clone a remote repository |
-| `git:status` | Renderer → Main | Get repo status (files, branch, ahead/behind) |
-| `git:commit-push` | Renderer → Main | Stage all, commit, and push |
-| `git:create-branch` | Renderer → Main | Create and checkout a new branch |
-| `git:list-repos` | Renderer → Main | List all locally cloned repos |
-| `dialog:select-directory` | Renderer → Main | Open native folder picker |
-| `repo:parse` | Renderer → Main | Parse a repository with RepoParser |
-| `window:minimize` | Renderer → Main | Minimize the app window |
-| `window:maximize` | Renderer → Main | Toggle maximize/restore |
-| `window:close` | Renderer → Main | Close the app window |
-
-> All IPC calls are typed via `types/electron.d.ts` and exposed through `electron/preload.ts`.
-
----
-
-## Data Flow
-
-```mermaid
-graph LR
-    subgraph State["App.tsx State"]
-        repo["repo: Repository"]
-        sel["selectedComponent"]
-        cs["computedStyles"]
-    end
-
-    SB[Sidebar] -->|onSelect| sel
-    sel --> RS[ReactSandbox]
-    sel --> PP[PropertiesPanel]
-    RS -->|onComputedStyles| cs
-    cs --> PP
-    PP -->|onUpdateComponent| repo
-    repo --> SB
-    repo --> RS
-```
-
-### State management
-
-UI Forge uses **React's built-in useState** — no external state library. All state lives in `App.tsx`:
-
-| State | Type | Description |
-|-------|------|-------------|
-| `repo` | `Repository` | Full repository data (components, tokens, theme) |
-| `selectedId` | `string \| null` | ID of the selected component or token |
-| `zoom` | `number` | Canvas zoom level |
-| `computedStyles` | `ComputedStylesData` | Computed CSS values from the live preview |
-| `connectModalOpen` | `boolean` | ConnectModal visibility |
-| `syncModalOpen` | `boolean` | SyncModal visibility |
-| `toast` | `object` | Toast notification state |
-
----
-
-## Component Reference
-
-### UI Components
-
-| Component | File | Description |
-|-----------|------|-------------|
-| `App` | `App.tsx` | Root orchestrator. Manages state, modals, and the 3-column layout. |
-| `Sidebar` | `components/Sidebar.tsx` | Tree view of components (grouped by category), tokens, and story variants. |
-| `ReactSandbox` | `components/ReactSandbox.tsx` | Iframe-based live preview. Handles esbuild compilation, HTML generation, message passing. |
-| `Canvas` | `components/Canvas.tsx` | Legacy static canvas using Babel. Fallback when esbuild isn't available. |
-| `StaticCanvas` | `components/StaticCanvas.tsx` | Static preview with variant matrix and state views. |
-| `PropertiesPanel` | `components/PropertiesPanel.tsx` | Right panel: sizing, spacing, colors, typography, props, AI edit, and variant management. |
-| `ConnectModal` | `components/ConnectModal.tsx` | Modal for cloning a repo (HTTPS/SSH) or selecting a local directory. |
-| `SyncModal` | `components/SyncModal.tsx` | Modal for committing and pushing changes. |
-| `TitleBar` | `components/TitleBar.tsx` | Custom macOS/Windows title bar (hidden when running in web mode). |
-
-### Internal Modules
-
-| Module | File | Description |
-|--------|------|-------------|
-| `sandboxTemplate` | `components/ReactSandbox/sandboxTemplate.ts` | Generates the full HTML document injected into the preview iframe. |
-| `useStyleOverrides` | `components/PropertiesPanel/hooks/useStyleOverrides.ts` | Hook managing non-destructive CSS overrides per variant. |
-
----
-
-## Service Reference
-
-### Main Process Services
-
-| Service | File | Description |
-|---------|------|-------------|
-| `RepoParser` | `electron/services/repoParser.ts` | The core engine. Parses repository directories, reads `forgecore.json`, extracts component metadata, CSS, tokens, props, and story variants. |
-| `GitService` | `electron/services/gitService.ts` | Git operations: clone, status, commit, push, branch creation, repo listing. Uses `simple-git`. |
-
-### Renderer Services
-
-| Service | File | Description |
-|---------|------|-------------|
-| `esbuildCompiler` | `lib/esbuildCompiler.ts` | Browser-side JSX/TSX compilation via esbuild-wasm. Creates preview bundles with import stubs and CSS Module transforms. |
-| `geminiService` | `services/geminiService.ts` | Gemini AI integration for generating/modifying Tailwind classes and suggesting component variants. |
-
----
-
-## Type System
-
-All types are defined in two files:
-
-### `types.ts` — Renderer-side types
-
-```typescript
-// Core data model
-ComponentNode          // A parsed component with props, variants, styles
-Repository             // Full repo: components[], tokens[], themeCSS, utilities
-Token                  // Design token (color, spacing, typography, radius)
-ComponentVariant       // Variant definition (name, type, cssClass)
-StoryVariant           // Story from .stories.tsx
-ComponentPropDef       // Prop definition for editor controls
-GenerationConfig       // AI generation input
-SyncPayload            // Git sync parameters
-```
-
-### `types/electron.d.ts` — IPC bridge types
-
-```typescript
-ElectronAPI            // Shape of window.electronAPI
-GitResult<T>           // Standard IPC response wrapper
-ParsedComponent        // Component as returned by RepoParser
-ParsedRepoContents     // Full parse result
-```
-
----
-
-## Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `vite.config.ts` | Dev server (port 3000), React plugin, path alias `@/`, Gemini API key injection |
-| `tsconfig.json` | Renderer TypeScript config |
-| `tsconfig.electron.json` | Main process TypeScript config (ES2022, NodeNext) |
-| `tsconfig.preload.json` | Preload script TypeScript config |
-| `package.json` → `build` | Electron Builder config (macOS dmg, Windows nsis, Linux AppImage) |
-| `.env.local` | Environment variables (`GEMINI_API_KEY`) |
-| `.gitignore` | Ignores node_modules, dist, dist-ssr, .DS_Store, editor configs |
-
----
-
-## Building for Production
-
-### Package the desktop app
+### Production Build
 
 ```bash
 npm run electron:build
 ```
 
-This will:
-1. Build the Vite renderer → `dist/`
-2. Compile Electron TypeScript → `dist-electron/`
-3. Package with electron-builder → `release/`
-
-Output formats:
-- **macOS**: `.dmg`, `.zip`
-- **Windows**: `.exe` (NSIS installer), portable `.exe`
-- **Linux**: `.AppImage`, `.deb`
+Produces distributable binaries in the `release/` directory (DMG/ZIP for macOS, NSIS/Portable for Windows, AppImage/DEB for Linux).
 
 ---
 
-## Troubleshooting
+## Configuration: forgecore.json
 
-| Issue | Solution |
-|-------|----------|
-| **esbuild WASM fails to load** | Ensure `public/esbuild.wasm` exists (13.5 MB). It's loaded at runtime. |
-| **"electronAPI is not defined"** | You're running in web mode (`npm run dev`). Use `npm run electron:dev` for full features. |
-| **Components don't render in preview** | Check the browser console for esbuild compilation errors. Ensure the component has valid `sourceCode`. |
-| **Git operations fail** | Verify SSH keys or HTTPS credentials are configured on your system. |
-| **Styles look wrong in preview** | The theme CSS (`themeCSS`) might not be injecting. Check that the repo has a globals.css or tokens file. |
-| **EPIPE errors in console** | These are Electron IPC buffer overflows — usually from excessive logging. They're handled gracefully. |
+UI Forge reads a `forgecore.json` file from the root of any connected design-system repository. This file tells the app where to find components, how they're structured, and how to preview them.
+
+See the full guide at [`docs/forgecore-guide.md`](docs/forgecore-guide.md) and the template at [`docs/forgecore-template.json`](docs/forgecore-template.json).
+
+### Minimal Example
+
+```json
+{
+  "name": "my-design-system",
+  "version": "1.0.0",
+  "componentRoot": "src/components",
+  "components": {
+    "Button": {
+      "entry": "Button.tsx",
+      "styles": "Button.module.css",
+      "type": "input",
+      "variants": [
+        { "prop": "variant", "values": ["primary", "secondary", "ghost"], "default": "primary" },
+        { "prop": "size", "values": ["sm", "md", "lg"], "default": "md" }
+      ]
+    }
+  }
+}
+```
 
 ---
 
-<div align="center">
+## Tech Stack
 
-**UI Forge** — *Bridge the gap between code and design.*
+| Layer          | Technology                                     |
+| -------------- | ---------------------------------------------- |
+| Desktop Shell  | Electron 40+                                   |
+| UI Framework   | React 19 + TypeScript 5.8                      |
+| Build Tool     | Vite 6                                         |
+| Compiler       | esbuild-wasm 0.27 (in-browser JSX/TSX)         |
+| AST Parsing    | ts-morph (TypeScript compiler API)             |
+| CSS Parsing    | Custom CSS Module parser (`cssModuleParser.ts`) |
+| Git            | simple-git (Node.js Git wrapper)               |
+| Auth           | Firebase Authentication (Google Sign-In)       |
+| Database       | Cloud Firestore (user profiles & roles)        |
+| AI             | Google Gemini API (`@google/genai`)             |
+| Syntax Highlight | highlight.js                                 |
+| Icons          | lucide-react                                   |
 
-</div>
+---
+
+## Environment Variables
+
+Create a `.env.local` file in the project root:
+
+```env
+# Google Gemini API Key (for AI chat feature)
+GEMINI_API_KEY=your_gemini_api_key
+
+# Firebase Configuration
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+> ⚠️ Never commit `.env.local` to version control. It is already in `.gitignore`.
+
+---
+
+<p align="center">
+  Built with ❤️ by <a href="https://github.com/aizetachan">aizetachan</a>
+</p>
