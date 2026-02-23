@@ -1,0 +1,283 @@
+{
+    "$schema": "https://forgecore.dev/schemas/forgecore.v1.json",
+    "forgecoreVersion": "1.0.0",
+    "name": "REPLACE_WITH_YOUR_DS_NAME",
+    "version": "1.0.0",
+    "description": "REPLACE_WITH_YOUR_DESCRIPTION",
+    "package": {
+        "displayName": "REPLACE — My Design System",
+        "npmName": "@myorg/design-system",
+        "version": "1.0.0",
+        "license": "MIT",
+        "repoURL": "https://github.com/myorg/design-system.git",
+        "author": "Your Name"
+    },
+    "metadata": {
+        "framework": "react",
+        "language": "typescript",
+        "moduleFormat": "esm",
+        "monorepo": false,
+        "entryStrategy": "source"
+    },
+    "preview": {
+        "mode": "esbuild",
+        "theme": "dark",
+        "background": "#09090b",
+        "behavior": {
+            "disableAnimations": false,
+            "logEvents": true,
+            "captureConsole": true
+        }
+    },
+    "runtime": {
+        "react": {
+            "version": "18.x"
+        },
+        "bundler": {
+            "type": "esbuild",
+            "platform": "browser",
+            "jsx": "automatic"
+        },
+        "aliases": {
+            "@": "src",
+            "@/components": "src/components",
+            "@/utils": "src/utils",
+            "@/styles": "src/styles"
+        },
+        "globalCss": [
+            "src/styles/globals.css",
+            "src/styles/themes/dark.css"
+        ],
+        "theme": {
+            "strategy": "attribute",
+            "attribute": "data-theme",
+            "values": [
+                "dark",
+                "light"
+            ],
+            "default": "dark",
+            "applyTo": "documentElement"
+        },
+        "mount": {
+            "rootId": "forge-root",
+            "wrapper": {
+                "element": "div",
+                "props": {
+                    "style": "min-height:100vh; padding:24px; box-sizing:border-box;"
+                }
+            }
+        },
+        "portals": {
+            "enabled": true,
+            "rootId": "forge-portal-root",
+            "attachTo": "body",
+            "createIfMissing": true
+        },
+        "stubs": {
+            "icons": {
+                "library": "lucide-react",
+                "enabled": true,
+                "strategy": "component",
+                "fallback": "span"
+            }
+        }
+    },
+    "utilities": {
+        "cn": {
+            "path": "src/utils/cn.ts",
+            "export": {
+                "type": "named",
+                "name": "cn"
+            },
+            "stub": "function cn(){return Array.from(arguments).filter(Boolean).join(' ')}"
+        }
+    },
+    "tokens": {
+        "type": "css-variables",
+        "css": [
+            "src/styles/globals.css",
+            "src/styles/themes/dark.css"
+        ],
+        "categories": {
+            "colors": "--my-color-",
+            "spacing": "--my-space-",
+            "typography": "--my-font-",
+            "radius": "--my-radius-"
+        }
+    },
+    "assets": {
+        "icons": {
+            "library": "lucide-react",
+            "stub": true
+        },
+        "images": "public/images",
+        "fonts": "public/fonts"
+    },
+    "components": {
+        "Button": {
+            "entry": "src/components/Button/Button.tsx",
+            "export": {
+                "type": "named",
+                "name": "Button"
+            },
+            "styles": [
+                "src/components/Button/Button.module.css"
+            ],
+            "dependencies": [
+                "src/utils/cn.ts"
+            ],
+            "type": "input",
+            "variants": [
+                {
+                    "prop": "variant",
+                    "values": [
+                        "primary",
+                        "secondary",
+                        "ghost",
+                        "danger"
+                    ],
+                    "default": "primary"
+                },
+                {
+                    "prop": "size",
+                    "values": [
+                        "sm",
+                        "md",
+                        "lg"
+                    ],
+                    "default": "md"
+                }
+            ],
+            "defaultProps": {
+                "children": "Click me",
+                "variant": "primary",
+                "size": "md",
+                "disabled": false
+            }
+        },
+        "Input": {
+            "entry": "src/components/Input/Input.tsx",
+            "export": {
+                "type": "named",
+                "name": "Input"
+            },
+            "styles": [
+                "src/components/Input/Input.module.css"
+            ],
+            "dependencies": [
+                "src/utils/cn.ts"
+            ],
+            "type": "input",
+            "model": {
+                "pattern": "controlledValue",
+                "events": [
+                    "onChange"
+                ]
+            },
+            "variants": [
+                {
+                    "prop": "state",
+                    "values": [
+                        "default",
+                        "error",
+                        "success"
+                    ],
+                    "default": "default"
+                },
+                {
+                    "prop": "size",
+                    "values": [
+                        "sm",
+                        "md",
+                        "lg"
+                    ],
+                    "default": "md"
+                }
+            ],
+            "defaultProps": {
+                "label": "Label",
+                "placeholder": "Enter text...",
+                "state": "default",
+                "size": "md"
+            },
+            "forge": {
+                "showcase": "<div style={{width:'280px'}}><Input label={props.label} placeholder={props.placeholder} state={props.state} size={props.size} /></div>"
+            }
+        },
+        "Card": {
+            "entry": "src/components/Card/Card.tsx",
+            "export": {
+                "type": "named",
+                "name": "Card"
+            },
+            "styles": [
+                "src/components/Card/Card.module.css"
+            ],
+            "dependencies": [
+                "src/utils/cn.ts",
+                "src/components/Button/Button.tsx"
+            ],
+            "type": "layout",
+            "variants": [
+                {
+                    "prop": "variant",
+                    "values": [
+                        "default",
+                        "elevated",
+                        "outlined"
+                    ],
+                    "default": "default"
+                }
+            ],
+            "defaultProps": {
+                "children": "Card Content",
+                "variant": "default"
+            },
+            "forge": {
+                "showcase": "<Card variant={props.variant}><CardHeader title='Card Title' /><CardBody><p>Card content goes here.</p></CardBody><CardFooter><Button variant='secondary' size='sm'>Cancel</Button><Button variant='primary' size='sm'>Confirm</Button></CardFooter></Card>"
+            }
+        },
+        "Modal": {
+            "entry": "src/components/Modal/Modal.tsx",
+            "export": {
+                "type": "named",
+                "name": "Modal"
+            },
+            "styles": [
+                "src/components/Modal/Modal.module.css"
+            ],
+            "dependencies": [
+                "src/utils/cn.ts",
+                "src/components/Button/Button.tsx"
+            ],
+            "type": "overlay",
+            "model": {
+                "pattern": "controlledBoolean",
+                "events": [
+                    "onClose"
+                ]
+            },
+            "variants": [
+                {
+                    "prop": "size",
+                    "values": [
+                        "sm",
+                        "md",
+                        "lg",
+                        "fullscreen"
+                    ],
+                    "default": "md"
+                }
+            ],
+            "defaultProps": {
+                "open": true,
+                "title": "Modal Title",
+                "size": "md"
+            },
+            "forge": {
+                "requiresPortal": true,
+                "showcase": "<Modal open={true} onClose={() => {}} title={props.title} size={props.size}><ModalBody><p>Modal content here.</p></ModalBody><ModalFooter><Button variant='secondary'>Cancel</Button><Button variant='primary'>Confirm</Button></ModalFooter></Modal>"
+            }
+        }
+    }
+}

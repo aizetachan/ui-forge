@@ -1,0 +1,5 @@
+{
+  "name": "UI Forge - Visual Component Editor",
+  "description": "A platform to connect GitHub component libraries, edit them visually like a design tool, and sync changes back to code.",
+  "requestFramePermissions": []
+}
