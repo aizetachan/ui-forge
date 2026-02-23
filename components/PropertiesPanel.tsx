@@ -248,35 +248,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'visual' | 'code'>('visual');
 
-  if (isSkeletonMode) {
-    return (
-      <div className="w-[320px] bg-zinc-950 border-l border-zinc-800 flex flex-col h-full select-none pointer-events-none">
-        {/* Header Skeleton */}
-        <div className="border-b border-zinc-800 p-4">
-          <div className="flex gap-2 mb-4">
-            <div className="flex-1 h-8 bg-zinc-900 rounded-md"></div>
-            <div className="flex-1 h-8 bg-zinc-900 rounded-md"></div>
-          </div>
-        </div>
-
-        {/* Content Skeleton */}
-        <div className="p-4 space-y-6">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="space-y-3">
-              <div className="w-1/3 h-4 bg-zinc-900 rounded"></div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="h-8 bg-zinc-900 rounded"></div>
-                <div className="h-8 bg-zinc-900 rounded"></div>
-                <div className="h-8 bg-zinc-900 rounded"></div>
-                <div className="h-8 bg-zinc-900 rounded"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   const [selectedRule, setSelectedRule] = useState<'__main__' | '__modifiers__' | string>('__main__');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
@@ -681,6 +652,32 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   }, [selectedRulePropertyMap]);
 
   // --- Early Returns (AFTER all hooks) ---
+
+  if (isSkeletonMode) {
+    return (
+      <div className="w-[320px] bg-zinc-950 border-l border-zinc-800 flex flex-col h-full select-none pointer-events-none">
+        <div className="border-b border-zinc-800 p-4">
+          <div className="flex gap-2 mb-4">
+            <div className="flex-1 h-8 bg-zinc-900 rounded-md"></div>
+            <div className="flex-1 h-8 bg-zinc-900 rounded-md"></div>
+          </div>
+        </div>
+        <div className="p-4 space-y-6">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="space-y-3">
+              <div className="w-1/3 h-4 bg-zinc-900 rounded"></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="h-8 bg-zinc-900 rounded"></div>
+                <div className="h-8 bg-zinc-900 rounded"></div>
+                <div className="h-8 bg-zinc-900 rounded"></div>
+                <div className="h-8 bg-zinc-900 rounded"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!selection) {
     return <div className="w-80 border-l border-zinc-800 bg-zinc-900 h-full flex items-center justify-center text-zinc-600 text-xs">No selection</div>;

@@ -48,6 +48,10 @@ export function useAuth() {
     // Guard against stale async callbacks overwriting fresh state
     const currentUidRef = useRef<string | null>(null);
 
+    // Stash OAuth info decoded from id_token BEFORE signInWithCredential fires
+    // onAuthStateChanged, since firebaseUser fields can be null in Electron.
+    const pendingOAuthInfoRef = useRef<{ email?: string; name?: string; photoURL?: string } | null>(null);
+
     useEffect(() => {
         if (!auth) {
             setState({ user: null, profile: null, isLoading: false, error: "Firebase configuration is missing in .env.local" });
@@ -61,14 +65,25 @@ export function useAuth() {
 
             if (firebaseUser) {
                 try {
-                    const providerId = firebaseUser.providerData[0]?.providerId || '';
+                    const providerInfo = firebaseUser.providerData[0];
+                    const providerId = providerInfo?.providerId || '';
                     const provider: AuthProvider = providerId.includes('github') ? 'github' : 'google';
+
+                    // Use multiple fallback sources for user info:
+                    // 1. firebaseUser (top-level) — works for signInWithPopup
+                    // 2. providerData[0] — sometimes populated by signInWithCredential
+                    // 3. pendingOAuthInfoRef — decoded from id_token BEFORE signInWithCredential (Electron)
+                    const pending = pendingOAuthInfoRef.current;
+                    const email = firebaseUser.email || providerInfo?.email || pending?.email || null;
+                    const displayName = firebaseUser.displayName || providerInfo?.displayName || pending?.name || null;
+                    const photoURL = firebaseUser.photoURL || providerInfo?.photoURL || pending?.photoURL || null;
+                    pendingOAuthInfoRef.current = null; // Clear after use
 
                     const profile = await userService.syncUserAfterLogin(
                         firebaseUser.uid,
-                        firebaseUser.email,
-                        firebaseUser.displayName,
-                        firebaseUser.photoURL,
+                        email,
+                        displayName,
+                        photoURL,
                         provider
                     );
 
@@ -115,6 +130,22 @@ export function useAuth() {
         let credential;
         if (providerId === 'google.com') {
             credential = GoogleAuthProvider.credential(result.idToken || null, result.accessToken || null);
+
+            // Pre-decode Google id_token BEFORE signInWithCredential so that
+            // onAuthStateChanged has access to email/name/photo via the ref.
+            if (result.idToken) {
+                try {
+                    const payload = JSON.parse(atob(result.idToken.split('.')[1]));
+                    pendingOAuthInfoRef.current = {
+                        email: payload.email || undefined,
+                        name: payload.name || undefined,
+                        photoURL: payload.picture || undefined,
+                    };
+                    console.log('[Auth] Pre-decoded id_token:', payload.email, payload.name);
+                } catch (e) {
+                    console.warn('[Auth] Failed to pre-decode id_token:', e);
+                }
+            }
         } else if (providerId === 'github.com') {
             credential = GithubAuthProvider.credential(result.accessToken || '');
         } else {
@@ -124,8 +155,7 @@ export function useAuth() {
         // Sign in with the credential — this triggers onAuthStateChanged
         const userCredential = await signInWithCredential(auth, credential);
 
-        // For Google: displayName/photoURL might be missing from signInWithCredential.
-        // Decode the id_token to extract user info and update the profile.
+        // For Google: also update the Firebase Auth profile if fields are missing
         if (providerId === 'google.com' && result.idToken && userCredential.user) {
             try {
                 const payload = JSON.parse(atob(result.idToken.split('.')[1]));
