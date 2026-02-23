@@ -158,6 +158,11 @@ export interface ElectronAPI {
         writeToken: (params: { themeFilePath: string; tokenName: string; newValue: string }) =>
             Promise<{ success: boolean; newContent: string; previousValue?: string; error?: string }>;
     };
+    auth: {
+        oauthSignIn: (params: { authDomain: string; apiKey: string; providerId: string; scopes: string }) =>
+            Promise<{ success: boolean; idToken?: string; accessToken?: string; providerId?: string; error?: string }>;
+        oauthCancel: () => Promise<void>;
+    };
     isElectron: boolean;
 }
 

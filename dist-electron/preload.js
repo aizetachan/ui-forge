@@ -39,4 +39,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     // Check if running in Electron
     isElectron: true,
+    // Auth (native OAuth flow to bypass COOP issues)
+    auth: {
+        oauthSignIn: (params) => ipcRenderer.invoke('auth:oauth-sign-in', params),
+        oauthCancel: () => ipcRenderer.invoke('auth:oauth-cancel'),
+    },
 });

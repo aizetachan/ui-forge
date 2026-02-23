@@ -7,12 +7,13 @@ import { ConnectModal } from './components/ConnectModal';
 import { TitleBar } from './components/TitleBar';
 // StateSelector is now integrated into the PropertiesPanel (Design tab)
 import { ComponentNode, Token } from './types';
-import { CheckCircle2, AlertCircle, GitPullRequestArrow } from 'lucide-react';
+import { CheckCircle2, AlertCircle, GitPullRequestArrow, Plug } from 'lucide-react';
 import { useAppState } from './hooks/useAppState';
 import { useChangeHistory } from './hooks/useChangeHistory';
 import { AiFloatingChat } from './components/AiFloatingChat';
 import { useAuth } from './hooks/useAuth';
 import { AuthModal } from './components/AuthModal';
+import { ProfileModal } from './components/ProfileModal';
 
 // Import electron types
 import './types/electron.d.ts';
@@ -38,12 +39,13 @@ export default function App() {
     handleDiscardAll,
   } = useAppState();
 
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, profile, isLoading: isAuthLoading, error: authError, logout, loginWithGithub, loginWithGoogle, cancelAuth } = useAuth();
   // We use skeleton mode if checking auth state or if logged out
   const isSkeletonMode = isAuthLoading || !user;
 
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [aiSessionKey, setAiSessionKey] = useState(0);
+  const [showProfile, setShowProfile] = useState(false);
 
   // ─── Change History (undo/redo) ──────────────────────────────
   const { pushChange } = useChangeHistory({
@@ -89,7 +91,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen w-screen bg-black text-white overflow-hidden">
       {/* Title Bar for Electron */}
-      <TitleBar />
+      <TitleBar user={user} profile={profile} onLogout={logout} onProfile={() => setShowProfile(true)} />
 
       {/* Main App Content */}
       <div className="flex flex-1 overflow-hidden">
@@ -155,33 +157,17 @@ export default function App() {
             </div>
           )}
 
-          {/* "Select a Repository" Overlay */}
+
+          {/* Empty state — no repo loaded */}
           {!isSkeletonMode && !state.repoPath && (
-            <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 backdrop-blur-sm z-10 transition-colors">
-              <div className="text-center p-8 max-w-md">
-                <div className="w-16 h-16 bg-blue-600/20 text-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-900/20">
-                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-medium text-white mb-2 tracking-tight">Select a Repository</h3>
-                <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
-                  Open an existing React component library or create a new one to start generating UI.
-                </p>
-                <div className="flex gap-3 justify-center">
-                  <button
-                    onClick={() => dispatch({ type: 'SHOW_CONNECT_MODAL', payload: true })}
-                    className="bg-blue-600 text-white px-5 py-2.5 rounded-md font-medium text-sm hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2 group"
-                  >
-                    <span>Open Repository</span>
-                    <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-3 text-zinc-500">
+                <Plug className="w-6 h-6" />
+                <span className="text-sm font-medium">Connect Repo</span>
               </div>
             </div>
           )}
+
 
           {/* Empty Selection State */}
           {!isSkeletonMode && state.repoPath && !selectedItem && (
@@ -265,7 +251,16 @@ export default function App() {
       </div>
 
       {/* 6. Auth Modal (Shown when skeleton mode is active) */}
-      {isSkeletonMode && <AuthModal />}
+      {isSkeletonMode && <AuthModal loginWithGithub={loginWithGithub} loginWithGoogle={loginWithGoogle} onCancel={cancelAuth} isLoading={isAuthLoading} error={authError} />}
+
+      {showProfile && profile && (
+        <ProfileModal
+          profile={profile}
+          onClose={() => setShowProfile(false)}
+          onConnectGoogle={async () => { setShowProfile(false); await loginWithGoogle(); }}
+          onConnectGithub={async () => { setShowProfile(false); await loginWithGithub(); }}
+        />
+      )}
     </div>
   );
 }

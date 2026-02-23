@@ -196,9 +196,7 @@ export function generateSandboxHTML(themeCSS: string = ''): string {
   </style>
 </head>
 <body>
-  <div id="root">
-    <div class="loading">Loading component...</div>
-  </div>
+  <div id="root"></div>
   <div id="forge-portal-root"></div>
   
   <!-- Inspector overlay layers -->
@@ -347,7 +345,7 @@ export function generateSandboxHTML(themeCSS: string = ''): string {
       const rootEl = document.getElementById('root');
       
       if (!currentComponent) {
-        rootEl.innerHTML = '<div class="loading">No component loaded</div>';
+        rootEl.innerHTML = '';
         return;
       }
       

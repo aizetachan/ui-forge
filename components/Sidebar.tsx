@@ -32,6 +32,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
   gitStatus, onSwitchBranch, onCreateBranch, onCheckGitStatus, isSkeletonMode
 }) => {
   const [activeTab, setActiveTab] = useState<'components' | 'tokens'>('components');
+  const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showRepoList, setShowRepoList] = useState(false);
+  const [showBranchList, setShowBranchList] = useState(false);
+  const [branches, setBranches] = useState<{ current: string, all: { name: string; type: 'local' | 'remote' }[] } | null>(null);
+  const [newBranchName, setNewBranchName] = useState('');
+  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+
+  // Poll git status
+  useEffect(() => {
+    if (isConnected && onCheckGitStatus) {
+      onCheckGitStatus();
+      const interval = setInterval(onCheckGitStatus, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [isConnected, onCheckGitStatus]);
+
+  const loadBranches = async () => {
+    if (activeRepoPath && window.electronAPI?.git?.getBranches) {
+      setBranches(null);
+      try {
+        const res = await window.electronAPI.git.getBranches(activeRepoPath);
+        if (res.success && res.data) {
+          setBranches(res.data);
+        } else {
+          setBranches({ current: repo?.branch || 'unknown', all: [{ name: repo?.branch || 'unknown', type: 'local' }] });
+        }
+      } catch (error) {
+        setBranches({ current: repo?.branch || 'unknown', all: [{ name: repo?.branch || 'unknown', type: 'local' }] });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (showBranchList) {
+      loadBranches();
+    }
+  }, [showBranchList, activeRepoPath]);
 
   if (isSkeletonMode) {
     return (
@@ -60,46 +98,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
     );
   }
-  const [expandedComponents, setExpandedComponents] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showRepoList, setShowRepoList] = useState(false);
-  const [showBranchList, setShowBranchList] = useState(false);
-  const [branches, setBranches] = useState<{ current: string, all: { name: string; type: 'local' | 'remote' }[] } | null>(null);
-  const [newBranchName, setNewBranchName] = useState('');
-  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
-
-  // Poll git status
-  useEffect(() => {
-    if (isConnected && onCheckGitStatus) {
-      onCheckGitStatus();
-      const interval = setInterval(onCheckGitStatus, 60000); // Verify updates every minute
-      return () => clearInterval(interval);
-    }
-  }, [isConnected, onCheckGitStatus]);
-
-  const loadBranches = async () => {
-    if (activeRepoPath && window.electronAPI?.git?.getBranches) {
-      // Clear current branches to show spinner
-      setBranches(null);
-      try {
-        const res = await window.electronAPI.git.getBranches(activeRepoPath);
-        if (res.success && res.data) {
-          setBranches(res.data);
-        } else {
-          setBranches({ current: repo?.branch || 'unknown', all: [{ name: repo?.branch || 'unknown', type: 'local' }] });
-        }
-      } catch (error) {
-        setBranches({ current: repo?.branch || 'unknown', all: [{ name: repo?.branch || 'unknown', type: 'local' }] });
-      }
-    }
-  };
-
-  useEffect(() => {
-    // Only load branches when the dropdown is unhidden
-    if (showBranchList) {
-      loadBranches();
-    }
-  }, [showBranchList, activeRepoPath]);
 
   const toggleExpand = (id: string) => {
     setExpandedComponents(prev => {
@@ -140,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="w-full text-xs py-2 px-3 rounded bg-zinc-100 text-zinc-900 hover:bg-white font-bold transition-colors flex items-center justify-center gap-2"
             >
               <Plug className="w-3 h-3" />
-              Connect GitHub
+              Connect Repo
             </button>
             {/* Show recent repos for quick reconnect */}
             {recentRepos.length > 0 && (
