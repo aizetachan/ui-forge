@@ -11,7 +11,7 @@ import {
     serverTimestamp
 } from 'firebase/firestore';
 
-export type UserRole = 'master_admin' | 'admin' | 'free' | 'user';
+export type UserRole = 'master_admin' | 'admin' | 'user' | 'guest';
 export type UserStatus = 'pending' | 'approved' | 'rejected';
 export type AuthProvider = 'github' | 'google' | 'password';
 
@@ -111,12 +111,47 @@ export const userService = {
         provider: AuthProvider,
         company?: string
     ): Promise<UserProfile> {
-        // 1. Check if this UID already has a profile
+        // 1. Always check by email FIRST to consolidate identity
+        if (email) {
+            const existingByEmail = await this.findProfileByEmail(email);
+            if (existingByEmail) {
+                // Determine which document to update (use the original UID from the profile)
+                const targetUid = existingByEmail.uid;
+                const existingDocRef = doc(db, USERS_COLLECTION, targetUid);
+
+                // Link this new provider to the existing profile
+                const providers = existingByEmail.connectedProviders || [];
+                const alreadyConnected = providers.some(p => p.uid === uid && p.provider === provider);
+
+                if (!alreadyConnected) {
+                    providers.push({ provider, uid, connectedAt: new Date().toISOString() });
+                }
+
+                // Refresh stale data
+                const updates: Record<string, any> = {
+                    lastLoginAt: serverTimestamp(),
+                    connectedProviders: providers
+                };
+                if (name && (existingByEmail.name === 'Unknown User' || !existingByEmail.name)) {
+                    updates.name = name;
+                }
+                if (avatarUrl && (!existingByEmail.avatarUrl || existingByEmail.avatarUrl.includes('ui-avatars.com'))) {
+                    updates.avatarUrl = avatarUrl;
+                }
+
+                await setDoc(existingDocRef, updates, { merge: true });
+
+                console.log(`[UserService] Consolidated ${provider} (${uid}) to base profile ${targetUid} by email ${email}`);
+                const finalDoc = await getDoc(existingDocRef);
+                return { uid: finalDoc.id, ...finalDoc.data() } as UserProfile;
+            }
+        }
+
+        // 2. Check if this exact UID already has a profile (fallback if no email or no email match)
         const docRef = doc(db, USERS_COLLECTION, uid);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-            // User exists — update last login, refresh name/avatar, ensure provider is in connectedProviders
             const existing = docSnap.data() as UserProfile;
             const providers = existing.connectedProviders || [];
             const alreadyConnected = providers.some(p => p.uid === uid && p.provider === provider);
@@ -125,7 +160,6 @@ export const userService = {
                 providers.push({ provider, uid, connectedAt: new Date().toISOString() });
             }
 
-            // Refresh name, email, and avatar if they were missing or stale
             const updates: Record<string, any> = {
                 lastLoginAt: serverTimestamp(),
                 connectedProviders: providers,
@@ -143,30 +177,9 @@ export const userService = {
 
             await setDoc(docRef, updates, { merge: true });
 
-            return (await getDoc(docRef)).data() as UserProfile;
-        }
-
-        // 2. Check if email already exists under a different profile (email linking)
-        if (email) {
-            const existingByEmail = await this.findProfileByEmail(email);
-            if (existingByEmail) {
-                // Link this new provider to the existing profile
-                const providers = existingByEmail.connectedProviders || [];
-                const alreadyConnected = providers.some(p => p.uid === uid && p.provider === provider);
-
-                if (!alreadyConnected) {
-                    providers.push({ provider, uid, connectedAt: new Date().toISOString() });
-                }
-
-                const existingDocRef = doc(db, USERS_COLLECTION, existingByEmail.uid);
-                await setDoc(existingDocRef, {
-                    lastLoginAt: serverTimestamp(),
-                    connectedProviders: providers
-                }, { merge: true });
-
-                console.log(`[UserService] Linked ${provider} (${uid}) to existing profile ${existingByEmail.uid} by email ${email}`);
-                return (await getDoc(existingDocRef)).data() as UserProfile;
-            }
+            // Re-fetch safely and ensure `uid` is injected if the old document somehow missed it
+            const finalDoc = await getDoc(docRef);
+            return { uid: finalDoc.id, ...finalDoc.data() } as UserProfile;
         }
 
         // 3. Brand new user — create profile
@@ -176,7 +189,7 @@ export const userService = {
             name: name || 'Unknown User',
             company: company || '',
             avatarUrl: avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`,
-            role: 'free',
+            role: 'user', // newly registered users get 'user' role
             status: 'approved',
             authProvider: provider,
             connectedProviders: [
