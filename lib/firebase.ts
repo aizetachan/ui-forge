@@ -13,12 +13,10 @@ const firebaseConfig = {
 
 const isConfigured = !!firebaseConfig.apiKey;
 
-// Initialize Firebase only if configured to prevent fatal crashes
-const app = isConfigured ? initializeApp(firebaseConfig) : null;
-
-// Export null services if it fails to configure
-export const auth = app ? getAuth(app) : null;
-export const db = app ? getFirestore(app) : null;
+// Initialize Firebase
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 
 // Auth Providers
 export const githubProvider = new GithubAuthProvider();

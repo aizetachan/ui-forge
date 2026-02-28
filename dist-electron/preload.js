@@ -44,4 +44,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
         oauthSignIn: (params) => ipcRenderer.invoke('auth:oauth-sign-in', params),
         oauthCancel: () => ipcRenderer.invoke('auth:oauth-cancel'),
     },
+    // Stripe (bypass CORS by calling from main process)
+    stripe: {
+        checkout: (params) => ipcRenderer.invoke('stripe:checkout', params),
+        openUrl: (url) => ipcRenderer.invoke('stripe:open-url', url),
+    },
 });

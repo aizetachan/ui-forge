@@ -16,12 +16,23 @@ interface ProfileModalProps {
     onClose: () => void;
     onConnectGoogle: () => void;
     onConnectGithub: () => void;
+    onOpenPricing: () => void;
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, onConnectGoogle, onConnectGithub }) => {
+export const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, onConnectGoogle, onConnectGithub, onOpenPricing }) => {
     const connectedProviders = profile.connectedProviders || [];
     const isGoogleConnected = connectedProviders.some(p => p.provider === 'google');
     const isGithubConnected = connectedProviders.some(p => p.provider === 'github');
+    const isPro = profile.plan === 'pro' || profile.plan === 'team';
+
+    const handleManageBilling = async () => {
+        try {
+            const { openCustomerPortal } = await import('../lib/stripeService');
+            await openCustomerPortal();
+        } catch (err) {
+            console.error('Failed to open customer portal:', err);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
@@ -55,10 +66,49 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ profile, onClose, on
                         <div className="min-w-0">
                             <p className="text-sm font-semibold text-white truncate">{profile.name}</p>
                             <p className="text-xs text-zinc-400 truncate">{profile.email}</p>
-                            {profile.role && (
-                                <span className="inline-block mt-1.5 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
-                                    {profile.role}
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                                {profile.role && (
+                                    <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+                                        {profile.role}
+                                    </span>
+                                )}
+                                <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono border ${(profile.plan || 'free') === 'free' ? 'bg-zinc-800 text-zinc-300 border-zinc-700' :
+                                    profile.plan === 'pro' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                        profile.plan === 'team' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    }`}>
+                                    ⚡ {profile.plan === 'team' ? 'Ultra' : (profile.plan || 'free')}
                                 </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Subscription / Plan */}
+                <div className="px-5 py-4 border-b border-zinc-800 bg-zinc-900/50">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">Current Plan</h3>
+                            <p className="text-sm text-white font-medium capitalize flex items-center gap-2">
+                                {profile.plan || 'Free'}
+                                {isPro && <span className="flex h-2 w-2 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span></span>}
+                            </p>
+                        </div>
+                        <div>
+                            {isPro ? (
+                                <button
+                                    onClick={handleManageBilling}
+                                    className="text-xs font-medium px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors border border-zinc-700"
+                                >
+                                    Manage Billing
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={onOpenPricing}
+                                    className="text-xs font-medium px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-lg shadow-blue-500/20"
+                                >
+                                    Upgrade Plan
+                                </button>
                             )}
                         </div>
                     </div>

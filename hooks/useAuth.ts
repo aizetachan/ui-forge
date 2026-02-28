@@ -58,27 +58,40 @@ export function useAuth() {
             return;
         }
 
+        let unsubscribeProfile: (() => void) | null = null;
+
+        // Add a safety timeout to prevent infinite Skeletons if Firebase hangs
+        const timeoutId = setTimeout(() => {
+            console.warn("[useAuth] Firebase Auth initialization timed out after 5 seconds!");
+            setState(s => s.isLoading ? { ...s, isLoading: false, error: 'Auth Initialization Timeout - Clear site data or check IndexedDB' } : s);
+        }, 5000);
+
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            clearTimeout(timeoutId);
+            console.log("[useAuth] onAuthStateChanged fired. User:", firebaseUser?.uid || 'null');
             // Track the current user's UID to prevent race conditions
             const uid = firebaseUser?.uid ?? null;
             currentUidRef.current = uid;
 
+            // Clean up previous profile listener
+            if (unsubscribeProfile) {
+                unsubscribeProfile();
+                unsubscribeProfile = null;
+            }
+
             if (firebaseUser) {
                 try {
-                    const providerInfo = firebaseUser.providerData[0];
-                    const providerId = providerInfo?.providerId || '';
+                    const providerInfo = firebaseUser.providerData?.[0] || null;
+                    const providerId = providerInfo?.providerId || firebaseUser.providerId || '';
                     const provider: AuthProvider = providerId.includes('github') ? 'github' : 'google';
 
-                    // Use multiple fallback sources for user info:
-                    // 1. firebaseUser (top-level) — works for signInWithPopup
-                    // 2. providerData[0] — sometimes populated by signInWithCredential
-                    // 3. pendingOAuthInfoRef — decoded from id_token BEFORE signInWithCredential (Electron)
                     const pending = pendingOAuthInfoRef.current;
                     const email = firebaseUser.email || providerInfo?.email || pending?.email || null;
                     const displayName = firebaseUser.displayName || providerInfo?.displayName || pending?.name || null;
                     const photoURL = firebaseUser.photoURL || providerInfo?.photoURL || pending?.photoURL || null;
                     pendingOAuthInfoRef.current = null; // Clear after use
 
+                    console.log("[useAuth] Attempting to sync profile...");
                     const profile = await userService.syncUserAfterLogin(
                         firebaseUser.uid,
                         email,
@@ -86,25 +99,39 @@ export function useAuth() {
                         photoURL,
                         provider
                     );
+                    console.log("[useAuth] Profile sync successful:", profile.uid);
 
-                    // Only update state if THIS user is still the current user
-                    // (prevents stale sync from overwriting a sign-out)
                     if (currentUidRef.current === uid) {
                         setState({ user: firebaseUser, profile, isLoading: false, error: null });
                     }
+
+                    const { doc: firestoreDoc, onSnapshot: firestoreOnSnapshot } = await import('firebase/firestore');
+                    const { db } = await import('../lib/firebase');
+                    const userDocRef = firestoreDoc(db, 'users', profile.uid);
+                    unsubscribeProfile = firestoreOnSnapshot(userDocRef, (snap) => {
+                        if (snap.exists() && currentUidRef.current === uid) {
+                            const updatedProfile = snap.data() as UserProfile;
+                            setState(prev => ({ ...prev, profile: updatedProfile }));
+                        }
+                    });
                 } catch (error: any) {
-                    console.error("Error fetching/syncing profile:", error);
-                    // Only set error if this user is still current
+                    console.error("[useAuth] Error fetching/syncing profile:", error);
                     if (currentUidRef.current === uid) {
                         setState({ user: firebaseUser, profile: null, isLoading: false, error: error.message });
                     }
                 }
             } else {
-                setState({ user: null, profile: null, isLoading: false, error: null });
+                if (currentUidRef.current === uid) {
+                    setState({ user: null, profile: null, isLoading: false, error: null });
+                }
             }
         });
 
-        return () => unsubscribe();
+        return () => {
+            clearTimeout(timeoutId);
+            unsubscribe();
+            if (unsubscribeProfile) unsubscribeProfile();
+        };
     }, []);
 
     /**

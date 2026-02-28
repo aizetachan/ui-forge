@@ -86,11 +86,13 @@ export const TitleBar: React.FC<TitleBarProps> = ({ title = 'UI Forge', user, pr
                             <div className="px-3 py-2.5 border-b border-zinc-800">
                                 <p className="text-xs font-medium text-white truncate">{displayName}</p>
                                 <p className="text-[10px] text-zinc-500 truncate">{user.email}</p>
-                                {profile?.role && (
-                                    <span className="inline-block mt-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
-                                        {profile.role}
-                                    </span>
-                                )}
+                                <span className={`inline-block mt-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-mono border ${(profile?.plan || 'free') === 'free' ? 'bg-zinc-800 text-zinc-300 border-zinc-700' :
+                                        profile?.plan === 'pro' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                                            profile?.plan === 'team' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+                                                'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    }`}>
+                                    {profile?.plan === 'team' ? 'Ultra' : (profile?.plan || 'free')}
+                                </span>
                             </div>
                             <button
                                 onClick={() => { setShowMenu(false); onProfile?.(); }}

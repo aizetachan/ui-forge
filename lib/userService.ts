@@ -28,6 +28,7 @@ export interface UserProfile {
     company?: string;
     avatarUrl: string;
     role: UserRole;
+    plan?: string;        // Subscription plan: free | pro | team | enterprise
     status: UserStatus;
     authProvider: AuthProvider;           // Original sign-up provider
     connectedProviders: ConnectedProvider[];  // All linked providers

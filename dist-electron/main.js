@@ -7,6 +7,8 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { GitService } from './services/gitService.js';
 import { RepoParser } from './services/repoParser.js';
 import { CodeWriter } from './services/codeWriter.js';
+import pkg from 'electron-updater';
+const { autoUpdater } = pkg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDev = process.env.NODE_ENV === 'development';
@@ -86,6 +88,16 @@ app.whenReady().then(() => {
         }
     });
     createWindow();
+    // Setup Auto Updater
+    autoUpdater.logger = console;
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    // Check for updates shortly after startup
+    setTimeout(() => {
+        autoUpdater.checkForUpdatesAndNotify().catch(err => {
+            console.error('[AutoUpdater] Check failed:', err);
+        });
+    }, 3000);
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
@@ -562,4 +574,47 @@ ipcMain.handle('auth:oauth-cancel', () => {
         pendingAuthResolve = null;
         resolve({ success: false, error: '__cancelled__' });
     }
+});
+// Initialize a lightweight Firebase app in the main process
+import { initializeApp } from 'firebase/app';
+// import { getFunctions, httpsCallable } from 'firebase/functions'; // Removed as per instruction
+const mainProcessFirebaseApp = initializeApp({
+    apiKey: process.env.VITE_FIREBASE_API_KEY,
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+});
+// ========== Stripe IPC Handlers (bypass CORS) ==========
+ipcMain.handle('stripe:checkout', async (_event, params) => {
+    try {
+        console.log('[Stripe] Calling pure HTTP Cloud Function from Main Process');
+        const response = await fetch(params.url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${params.token}`
+            },
+            body: JSON.stringify({ data: params.data }),
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('[Stripe] Function error:', response.status, text);
+            return { success: false, error: `${response.status}: ${text}` };
+        }
+        const json = await response.json();
+        // Extract from "result" object as we wrap it that way in our onRequest function
+        const checkoutUrl = json.result?.url || json.url;
+        if (checkoutUrl) {
+            console.log('[Stripe] Opening checkout URL in browser');
+            shell.openExternal(checkoutUrl);
+        }
+        return { success: true, data: json.result || json };
+    }
+    catch (error) {
+        console.error('[Stripe] Error:', error.message);
+        return { success: false, error: error.message };
+    }
+});
+ipcMain.handle('stripe:open-url', async (_event, url) => {
+    shell.openExternal(url);
+    return { success: true };
 });

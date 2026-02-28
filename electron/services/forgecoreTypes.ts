@@ -30,6 +30,7 @@ export interface ComponentPropDef {
     control?: 'text' | 'number' | 'boolean' | 'select' | 'json' | 'slot' | 'none';
     options?: string[];
     defaultValue?: any;
+    isRequired?: boolean;
 }
 
 // ─── Package Metadata ────────────────────────────────────────
@@ -276,9 +277,10 @@ export interface ForgecoreComponent {
     // Prop Definitions
     propDefs?: Array<{
         name: string;
-        type: 'string' | 'number' | 'boolean' | 'enum' | 'array' | 'reactnode';
+        type: 'string' | 'number' | 'boolean' | 'enum' | 'array' | 'reactnode' | 'object' | 'function';
         options?: string[];
         defaultValue?: any;
+        isRequired?: boolean;
     }>;
 
     // Default Props

@@ -191,7 +191,8 @@ export class RepoParser {
                 name: pd.name,
                 type: pd.type,
                 options: pd.options,
-                defaultValue: pd.defaultValue
+                defaultValue: pd.defaultValue,
+                isRequired: pd.isRequired
             }));
             console.log(`[RepoParser] Using explicit propDefs for ${name}:`, propDefs.length);
         }
@@ -288,7 +289,7 @@ export class RepoParser {
             classes: '',
             content: config.defaultProps?.children || name,
             sourceCode,
-            props: config.defaultProps || {},
+            props: this.injectRequiredPropFallbacks(config.defaultProps || {}, propDefs),
             filePath: entryPath,
             forgecorePath: path.join(repoPath, 'forgecore.json'),
             importPath: `@repo/${config.entry.replace(/\.tsx?$/, '')}`,
@@ -345,6 +346,22 @@ export class RepoParser {
 
         // Default to string
         return { type: 'string', control: 'text' };
+    }
+
+    /**
+     * Inject safe fallbacks for required complex props (arrays, objects, functions)
+     * so that the Properties Panel initializes them correctly and the sandbox doesn't crash.
+     */
+    private injectRequiredPropFallbacks(props: Record<string, any>, propDefs: ComponentPropDef[]): Record<string, any> {
+        const mergedProps = { ...props };
+        for (const def of propDefs) {
+            if (def.isRequired && mergedProps[def.name] === undefined) {
+                if (def.type === 'array') mergedProps[def.name] = [];
+                else if (def.type === 'object') mergedProps[def.name] = {};
+                else if (def.type === 'function') mergedProps[def.name] = '__CALLBACK_STUB__';
+            }
+        }
+        return mergedProps;
     }
 
     /**
@@ -568,7 +585,7 @@ export class RepoParser {
             classes: cssModuleInfo.baseClasses,
             content: textContent,
             sourceCode: content, // Pass full source code for runtime rendering
-            props: this.extractProps(content),
+            props: this.injectRequiredPropFallbacks(this.extractProps(content), propDefs),
             propDefs: propDefs,
             filePath: fullPath,
             importPath: importPath,
@@ -671,10 +688,11 @@ export class RepoParser {
                 // Ignore comments
                 if (line.trim().startsWith('//') || line.trim().startsWith('/*')) continue;
 
-                const match = line.match(/^\s*(\w+)\??\s*:\s*([^;]+);/);
+                const match = line.match(/^\s*(\w+)(\?)?\s*:\s*([^;]+);/);
                 if (match) {
                     const name = match[1];
-                    let typeRaw = match[2].trim();
+                    const isOptional = !!match[2];
+                    let typeRaw = match[3].trim();
                     let type = 'string';
                     let options: string[] | undefined;
 
@@ -740,7 +758,7 @@ export class RepoParser {
                     // Include all props except className (handled separately)
                     // Include children, arrays, functions, etc. for ReactSandbox to handle
                     if (name !== 'className') {
-                        propDefs.push({ name, type, options, defaultValue });
+                        propDefs.push({ name, type, options, defaultValue, isRequired: !isOptional && defaultValue === undefined });
                     }
                 }
             }

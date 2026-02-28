@@ -12,13 +12,74 @@ import { useAppState } from './hooks/useAppState';
 import { useChangeHistory } from './hooks/useChangeHistory';
 import { AiFloatingChat } from './components/AiFloatingChat';
 import { useAuth } from './hooks/useAuth';
+import { useFeatureGate } from './hooks/useFeatureGate';
+import { openCheckout, verifyCheckoutSuccess } from './lib/stripeService';
 import { AuthModal } from './components/AuthModal';
 import { ProfileModal } from './components/ProfileModal';
+import { PricingModal } from './components/PricingModal';
 
 // Import electron types
 import './types/electron.d.ts';
 
 export default function App() {
+  // Catch Stripe return URLs in the browser
+  if (typeof window !== 'undefined' && window.location.search.includes('session_id=')) {
+    const sessionId = new URLSearchParams(window.location.search).get('session_id');
+    const [status, setStatus] = React.useState<'verifying' | 'success' | 'error'>('verifying');
+
+    React.useEffect(() => {
+      if (sessionId) {
+        verifyCheckoutSuccess(sessionId)
+          .then(() => setStatus('success'))
+          .catch((err) => {
+            console.error(err);
+            setStatus('error');
+          });
+      }
+    }, [sessionId]);
+
+    return (
+      <div className="h-screen w-screen bg-[#09090b] flex items-center justify-center font-sans text-center px-4">
+        <div className="max-w-md w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="mx-auto w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mb-6">
+            {status === 'verifying' ? (
+              <svg className="animate-spin w-8 h-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            ) : status === 'error' ? (
+              <AlertCircle className="w-8 h-8 text-red-500" />
+            ) : (
+              <CheckCircle2 className="w-8 h-8 text-blue-500" />
+            )}
+          </div>
+
+          <h1 className="text-3xl font-bold text-white mb-4">
+            {status === 'verifying' ? 'Verifying Payment...' : status === 'error' ? 'Verification Failed' : 'Payment Successful!'}
+          </h1>
+
+          <p className="text-zinc-400 mb-8 leading-relaxed">
+            {status === 'verifying' ? (
+              'Please wait while we confirm your payment with Stripe.'
+            ) : status === 'error' ? (
+              'We could not automatically verify your payment. It may still be processing.'
+            ) : (
+              <>
+                Your transaction was completed and your account has been upgraded.
+                <br /><br />
+                <span className="text-white font-medium">You can safely close this browser tab and return to the UI Forge desktop app.</span>
+              </>
+            )}
+          </p>
+
+          <button
+            onClick={() => window.close()}
+            className="px-6 py-3 bg-white text-zinc-900 font-semibold rounded-xl hover:bg-zinc-200 transition-colors"
+          >
+            Close Tab
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const {
     state,
     dispatch,
@@ -46,6 +107,20 @@ export default function App() {
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [aiSessionKey, setAiSessionKey] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [upgradeTooltip, setUpgradeTooltip] = useState<{ label: string } | null>(null);
+
+  // ─── Feature Gating ───────────────────────────────────────
+  const gate = useFeatureGate(profile);
+
+  const handleGatedAction = useCallback((capability: string, label: string, action: () => void) => {
+    if (gate.canAccess(capability)) {
+      action();
+    } else {
+      setUpgradeTooltip({ label });
+      setTimeout(() => setUpgradeTooltip(null), 4000);
+    }
+  }, [gate]);
 
   // ─── Change History (undo/redo) ──────────────────────────────
   const { pushChange } = useChangeHistory({
@@ -105,12 +180,12 @@ export default function App() {
           onSelectVariant={(componentId, variantCssClass) =>
             dispatch({ type: 'SELECT_VARIANT', payload: { componentId, variantCssClass } })
           }
-          onSync={() => dispatch({ type: 'SHOW_SYNC_MODAL', payload: true })}
+          onSync={() => handleGatedAction('gitSync', 'Git Sync', () => dispatch({ type: 'SHOW_SYNC_MODAL', payload: true }))}
           isSyncing={state.isSyncing}
           isConnected={state.isConnected}
           onConnect={() => dispatch({ type: 'SHOW_CONNECT_MODAL', payload: true })}
           onRefresh={handleRefreshRepo}
-          onPull={handlePullRepo}
+          onPull={() => handleGatedAction('gitSync', 'Git Sync', handlePullRepo)}
           recentRepos={recentRepos}
           onSwitchRepo={handleSwitchRepo}
           onRemoveRecentRepo={handleRemoveRecentRepo}
@@ -186,20 +261,51 @@ export default function App() {
 
           {/* AI Assistant FAB — bottom-left of preview area */}
           {!isSkeletonMode && !aiChatOpen && (
-            <button
-              onClick={() => setAiChatOpen(true)}
-              className="absolute bottom-4 left-4 z-40 w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-500 text-white shadow-lg flex items-center justify-center transition-all hover:scale-110"
-              title="Open AI Assistant"
-            >
-              <svg width="24" height="24" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 84.5C18.7909 84.5 17 82.7091 17 80.5L17 73.415C17.0001 62.4767 25.3972 53.5017 36.0967 52.5801C37.0592 42.9884 45.1547 35.5 55 35.5L60.0586 35.5C60.8234 25.7078 69.0114 18 79 18L81 18C82.1046 18 83 18.8954 83 20C83 20.0848 82.9927 20.168 82.9824 20.25C82.9927 20.332 83 20.4152 83 20.5L83 62.5C83 74.6503 73.1503 84.5 61 84.5L21 84.5ZM61 80.5C70.9411 80.5 79 72.4411 79 62.5L79 22C70.7157 22 64 28.7157 64 37C64 37.0848 63.9927 37.168 63.9824 37.25C63.9927 37.332 64 37.4152 64 37.5C64 38.6046 63.1046 39.5 62 39.5L55 39.5C46.7157 39.5 40 46.2157 40 54.5C40 55.6046 39.1046 56.5 38 56.5C37.986 56.5 37.972 56.4983 37.958 56.498C37.9437 56.4983 37.9294 56.5 37.915 56.5C28.5732 56.5001 21.0001 64.0732 21 73.415L21 80.5L61 80.5Z" fill="currentColor" />
-                <circle cx="48.5" cy="54.5" r="3.5" fill="currentColor" />
-                <circle cx="70.5" cy="54.5" r="3.5" fill="currentColor" />
-                <path d="M38 65H71" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-                <path d="M34.7316 5.27562C35.8544 2.24146 40.1457 2.24146 41.2684 5.27562L44.3462 13.5947C44.6992 14.5485 45.4516 15.3008 46.4053 15.6538L54.7244 18.7316C57.7585 19.8544 57.7585 24.1457 54.7244 25.2685L46.4053 28.3463C45.4516 28.6993 44.6992 29.4516 44.3462 30.4054L41.2684 38.7245L41.1538 39.0001C39.9213 41.6666 36.0787 41.6666 34.8462 39.0001L34.7316 38.7245L31.6538 30.4054C31.3228 29.5111 30.6404 28.7947 29.7705 28.4178L29.5947 28.3463L21.2756 25.2685C18.2415 24.1457 18.2415 19.8544 21.2756 18.7316L29.5947 15.6538C30.4889 15.3228 31.2054 14.6405 31.5823 13.7706L31.6538 13.5947L34.7316 5.27562ZM36.0113 15.2068C35.1876 17.4327 33.4326 19.1877 31.2068 20.0113L25.8305 22L31.2068 23.9888C33.2935 24.7609 34.966 26.3517 35.8456 28.3815L36.0113 28.7933L38 34.1684L39.9887 28.7933L40.1544 28.3815C41.034 26.3517 42.7065 24.7609 44.7932 23.9888L50.1683 22L44.7932 20.0113C42.5674 19.1877 40.8124 17.4327 39.9887 15.2068L38 9.83053L36.0113 15.2068Z" fill="currentColor" />
-                <path d="M14.0419 33.9589C15.0084 31.347 18.7023 31.347 19.6688 33.9589L21.3729 38.5653C21.6768 39.3863 22.3244 40.0339 23.1454 40.3378L27.7518 42.0419C30.3637 43.0084 30.3637 46.7023 27.7518 47.6688L23.1454 49.3729C22.3244 49.6768 21.6768 50.3244 21.3729 51.1454L19.6688 55.7518L19.5702 55.9891C18.5092 58.2845 15.2015 58.2845 14.1405 55.9891L14.0419 55.7518L12.3378 51.1454C12.0529 50.3756 11.4655 49.7589 10.7167 49.4345L10.5653 49.3729L5.95886 47.6688C3.34705 46.7023 3.34704 43.0084 5.95886 42.0419L10.5653 40.3378C11.3351 40.0529 11.9518 39.4655 12.2762 38.7167L12.3378 38.5653L14.0419 33.9589ZM16.0887 39.953C15.3797 41.869 13.869 43.3797 11.953 44.0887L9.88074 44.8553L11.953 45.622C13.7492 46.2866 15.189 47.6559 15.9462 49.4032L16.0887 49.7577L16.8553 51.829L17.622 49.7577L17.7645 49.4032C18.5217 47.6559 19.9615 46.2866 21.7577 45.622L23.829 44.8553L21.7577 44.0887C19.8417 43.3797 18.3309 41.869 17.622 39.953L16.8553 37.8807L16.0887 39.953Z" fill="currentColor" />
-              </svg>
-            </button>
+            <div className="absolute bottom-4 left-4 z-40">
+              <button
+                onClick={() => handleGatedAction('aiChat', 'AI Chat', () => setAiChatOpen(true))}
+                className={`w-8 h-8 rounded-lg shadow-lg flex items-center justify-center transition-all hover:scale-110 ${gate.canAccess('aiChat') ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-400'}`}
+                title={gate.canAccess('aiChat') ? 'Open AI Assistant' : 'Upgrade to access AI Chat'}
+              >
+                {gate.canAccess('aiChat') ? (
+                  <svg width="24" height="24" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 84.5C18.7909 84.5 17 82.7091 17 80.5L17 73.415C17.0001 62.4767 25.3972 53.5017 36.0967 52.5801C37.0592 42.9884 45.1547 35.5 55 35.5L60.0586 35.5C60.8234 25.7078 69.0114 18 79 18L81 18C82.1046 18 83 18.8954 83 20C83 20.0848 82.9927 20.168 82.9824 20.25C82.9927 20.332 83 20.4152 83 20.5L83 62.5C83 74.6503 73.1503 84.5 61 84.5L21 84.5ZM61 80.5C70.9411 80.5 79 72.4411 79 62.5L79 22C70.7157 22 64 28.7157 64 37C64 37.0848 63.9927 37.168 63.9824 37.25C63.9927 37.332 64 37.4152 64 37.5C64 38.6046 63.1046 39.5 62 39.5L55 39.5C46.7157 39.5 40 46.2157 40 54.5C40 55.6046 39.1046 56.5 38 56.5C37.986 56.5 37.972 56.4983 37.958 56.498C37.9437 56.4983 37.9294 56.5 37.915 56.5C28.5732 56.5001 21.0001 64.0732 21 73.415L21 80.5L61 80.5Z" fill="currentColor" />
+                    <circle cx="48.5" cy="54.5" r="3.5" fill="currentColor" />
+                    <circle cx="70.5" cy="54.5" r="3.5" fill="currentColor" />
+                    <path d="M38 65H71" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                    <path d="M34.7316 5.27562C35.8544 2.24146 40.1457 2.24146 41.2684 5.27562L44.3462 13.5947C44.6992 14.5485 45.4516 15.3008 46.4053 15.6538L54.7244 18.7316C57.7585 19.8544 57.7585 24.1457 54.7244 25.2685L46.4053 28.3463C45.4516 28.6993 44.6992 29.4516 44.3462 30.4054L41.2684 38.7245L41.1538 39.0001C39.9213 41.6666 36.0787 41.6666 34.8462 39.0001L34.7316 38.7245L31.6538 30.4054C31.3228 29.5111 30.6404 28.7947 29.7705 28.4178L29.5947 28.3463L21.2756 25.2685C18.2415 24.1457 18.2415 19.8544 21.2756 18.7316L29.5947 15.6538C30.4889 15.3228 31.2054 14.6405 31.5823 13.7706L31.6538 13.5947L34.7316 5.27562ZM36.0113 15.2068C35.1876 17.4327 33.4326 19.1877 31.2068 20.0113L25.8305 22L31.2068 23.9888C33.2935 24.7609 34.966 26.3517 35.8456 28.3815L36.0113 28.7933L38 34.1684L39.9887 28.7933L40.1544 28.3815C41.034 26.3517 42.7065 24.7609 44.7932 23.9888L50.1683 22L44.7932 20.0113C42.5674 19.1877 40.8124 17.4327 39.9887 15.2068L38 9.83053L36.0113 15.2068Z" fill="currentColor" />
+                    <path d="M14.0419 33.9589C15.0084 31.347 18.7023 31.347 19.6688 33.9589L21.3729 38.5653C21.6768 39.3863 22.3244 40.0339 23.1454 40.3378L27.7518 42.0419C30.3637 43.0084 30.3637 46.7023 27.7518 47.6688L23.1454 49.3729C22.3244 49.6768 21.6768 50.3244 21.3729 51.1454L19.6688 55.7518L19.5702 55.9891C18.5092 58.2845 15.2015 58.2845 14.1405 55.9891L14.0419 55.7518L12.3378 51.1454C12.0529 50.3756 11.4655 49.7589 10.7167 49.4345L10.5653 49.3729L5.95886 47.6688C3.34705 46.7023 3.34704 43.0084 5.95886 42.0419L10.5653 40.3378C11.3351 40.0529 11.9518 39.4655 12.2762 38.7167L12.3378 38.5653L14.0419 33.9589ZM16.0887 39.953C15.3797 41.869 13.869 43.3797 11.953 44.0887L9.88074 44.8553L11.953 45.622C13.7492 46.2866 15.189 47.6559 15.9462 49.4032L16.0887 49.7577L16.8553 51.829L17.622 49.7577L17.7645 49.4032C18.5217 47.6559 19.9615 46.2866 21.7577 45.622L23.829 44.8553L21.7577 44.0887C19.8417 43.3797 18.3309 41.869 17.622 39.953L16.8553 37.8807L16.0887 39.953Z" fill="currentColor" />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Upgrade tooltip */}
+              {upgradeTooltip && (
+                <div className="absolute bottom-10 left-0 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl px-3 py-2 flex items-center gap-2 whitespace-nowrap">
+                    <span className="text-[11px] text-zinc-300">⚡ {upgradeTooltip.label}</span>
+                    <button
+                      onClick={() => {
+                        setUpgradeTooltip(null);
+                        setShowPricingModal(true);
+                      }}
+                      className="text-[10px] font-medium px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                    >
+                      Upgrade
+                    </button>
+                    <button onClick={() => setUpgradeTooltip(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors ml-0.5">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                  <div className="w-2 h-2 bg-zinc-900 border-b border-r border-zinc-700 transform rotate-45 ml-3 -mt-1" />
+                </div>
+              )}
+            </div>
           )}
         </main>
 
@@ -259,8 +365,14 @@ export default function App() {
           onClose={() => setShowProfile(false)}
           onConnectGoogle={async () => { setShowProfile(false); await loginWithGoogle(); }}
           onConnectGithub={async () => { setShowProfile(false); await loginWithGithub(); }}
+          onOpenPricing={() => { setShowProfile(false); setShowPricingModal(true); }}
         />
       )}
+
+      <PricingModal
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+      />
     </div>
   );
 }

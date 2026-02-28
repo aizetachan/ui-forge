@@ -148,6 +148,7 @@ export async function extractPropDefsFromAST(
                 options: resolved.options,
                 defaultValue: defaults.get(name),
                 control: resolved.control,
+                isRequired: !prop.isOptional() && defaults.get(name) === undefined,
             });
         }
 
